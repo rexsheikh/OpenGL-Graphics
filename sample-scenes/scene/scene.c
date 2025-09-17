@@ -275,39 +275,33 @@ static void rod(float length, float radius, int slices)
       }
     glEnd();
 }
-/*
- * extrudeDisk - draws a cylinder by extruding a disk of radius R
- * along +Z by thickness T
- *
- * Parameters:
- *   R = radius
- *   T = thickness (height along +Z)
- *   slices = number of segments (resolution around circle)
- */
-static void extrudeDisk(float R, float T, int slices)
+static void extrudedDisk(float R, float T, int slices)
 {
-    if (slices < 3) slices = 3; // at least a triangle
+    if (slices < 3) slices = 3;
+    const float TWO_PI = 6.28318530718f;
 
-    // Bottom cap (z=0)
+    // Bottom cap (z=0), CCW as seen from -Z
     glColor3f(0.9f,0.9f,0.9f);
     glBegin(GL_TRIANGLE_FAN);
-      glVertex3f(0.0f,0.0f,0.0f);
-      for (int th=0; th<=360; th+=360/slices)
-      {
-          float x = R * cos(th * M_PI/180.0);
-          float y = R * sin(th * M_PI/180.0);
+      glNormal3f(0,0,-1);
+      glVertex3f(0.0f,0.0f,0.0f);                // center
+      for (int i=0; i<=slices; ++i) {
+          float a = TWO_PI * (float)i / (float)slices;
+          float x = R * cosf(a);
+          float y = R * sinf(a);
           glVertex3f(x,y,0.0f);
       }
     glEnd();
 
-    // Top cap (z=T)
+    // Top cap (z=T), CCW as seen from +Z
     glColor3f(0.7f,0.7f,0.7f);
     glBegin(GL_TRIANGLE_FAN);
-      glVertex3f(0.0f,0.0f,T);
-      for (int th=0; th<=360; th+=360/slices)
-      {
-          float x = R * cos(th * M_PI/180.0);
-          float y = R * sin(th * M_PI/180.0);
+      glNormal3f(0,0,1);
+      glVertex3f(0.0f,0.0f,T);                   // center
+      for (int i=0; i<=slices; ++i) {
+          float a = TWO_PI * (float)i / (float)slices;
+          float x = R * cosf(a);
+          float y = R * sinf(a);
           glVertex3f(x,y,T);
       }
     glEnd();
@@ -315,16 +309,15 @@ static void extrudeDisk(float R, float T, int slices)
     // Side wall
     glColor3f(0.3f,0.6f,1.0f);
     glBegin(GL_QUAD_STRIP);
-      for (int th=0; th<=360; th+=360/slices)
-      {
-          float x = R * cos(th * M_PI/180.0);
-          float y = R * sin(th * M_PI/180.0);
-          glVertex3f(x,y,0.0f);
-          glVertex3f(x,y,T);
+      for (int i=0; i<=slices; ++i) {
+          float a = TWO_PI * (float)i / (float)slices;
+          float cx = cosf(a), cy = sinf(a);
+          glNormal3f(cx,cy,0);                   // outward normal
+          glVertex3f(R*cx, R*cy, 0.0f);
+          glVertex3f(R*cx, R*cy, T);
       }
     glEnd();
 }
-
 
 
 
@@ -365,7 +358,7 @@ void display()
         rod(2.0f, 0.25f, 32);
         break;
       case 4:
-        extrudeDisk(0.8f,0.3f,32);
+        extrudedDisk(0.8f,0.3f,32);
         break;
   }
    //  White
