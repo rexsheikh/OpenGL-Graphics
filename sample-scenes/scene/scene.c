@@ -32,7 +32,7 @@ int ph=30;          //  Elevation of view angle
 double zh=0;       //  Rotation of teapot
 int axes=1;        //  Display axes
 int mode=0;        //  What to display
-// const char* text[] = {"Cuboids","Spheres","FlatPlane Outline","FlatPlane Fill","SolidPlane","Icosahedron DrawElements","Icosahedron DrawArrays","Icosahedron VBO","Scene"};
+const char* text[] = {"Full Scene","Helicopter","Windmill"};
 
 //  Cosine and Sine in degrees
 #define Cos(x) (cos((x)*3.14159265/180)) //c in radians, must convert
@@ -140,9 +140,9 @@ static void cube(double x,double y,double z,
 }
 
 /* Torus centered at origin.
-   - R:    major radius (distance from center to tube center)
-   - r:    minor radius (tube thickness)
-   - sweepDeg: how much of the torus to render (0..360)
+   - R: major radius    
+   - r: tube thickness (minor radius)
+   - sweepDeg: how much of the torus to render
    - rings: number of segments around the major circle (u direction)
    - sides: number of segments around the tube (v direction)
 */
@@ -199,12 +199,11 @@ static void extrudedTriangle(const float A[3],
     float Bx = B[0], By = B[1], Bz = B[2];
     float Cx = C[0], Cy = C[1], Cz = C[2];
 
-    // Compute back face by extruding +T in Z
     float Azb = Az + T;
     float Bzb = Bz + T;
     float Czb = Cz + T;
 
-    // Front cap (faces +Z)
+    // Front cap
     glColor3f(0.95f, 0.95f, 0.95f);
     glBegin(GL_TRIANGLES);
       glVertex3f(Ax, Ay, Az);
@@ -212,7 +211,7 @@ static void extrudedTriangle(const float A[3],
       glVertex3f(Cx, Cy, Cz);
     glEnd();
 
-    // Back cap (faces -Z)
+    // Back cap
     glColor3f(0.75f, 0.75f, 0.75f);
     glBegin(GL_TRIANGLES);
       glVertex3f(Cx, Cy, Czb);
@@ -220,7 +219,7 @@ static void extrudedTriangle(const float A[3],
       glVertex3f(Ax, Ay, Azb);
     glEnd();
 
-    // Side 1: AB edge
+    // Side 1
     glColor3f(0.25f, 0.6f, 1.0f);
     glBegin(GL_TRIANGLES);
       glVertex3f(Ax, Ay, Az);
@@ -231,7 +230,7 @@ static void extrudedTriangle(const float A[3],
       glVertex3f(Ax, Ay, Azb);
     glEnd();
 
-    // Side 2: BC edge
+    // Side 2
     glBegin(GL_TRIANGLES);
       glVertex3f(Bx, By, Bz);
       glVertex3f(Cx, Cy, Cz);
@@ -241,7 +240,7 @@ static void extrudedTriangle(const float A[3],
       glVertex3f(Bx, By, Bzb);
     glEnd();
 
-    // Side 3: CA edge
+    // Side 3
     glBegin(GL_TRIANGLES);
       glVertex3f(Cx, Cy, Cz);
       glVertex3f(Ax, Ay, Az);
@@ -253,18 +252,13 @@ static void extrudedTriangle(const float A[3],
 }
 
 
-/* Cylinder (rod) along X axis, centered at origin.
-   - length: total length
-   - radius: cylinder radius
-   - slices: number of radial subdivisions (e.g., 24 or 36)
-*/
+
 static void rod(float length, float radius, int slices)
 {
     if (slices < 6) slices = 6;
     float xL = -0.5f*length;
     float xR = +0.5f*length;
 
-    // Side wall
     glBegin(GL_QUAD_STRIP);
     for (int i=0;i<=slices;i++)
     {
@@ -277,9 +271,8 @@ static void rod(float length, float radius, int slices)
     }
     glEnd();
 
-    // Right end cap (fan)
     glBegin(GL_TRIANGLE_FAN);
-      glVertex3f(xR, 0.0f, 0.0f); // center
+      glVertex3f(xR, 0.0f, 0.0f);
       for (int i=0;i<=slices;i++)
       {
           float ang = (float)i / (float)slices * 2.0f*(float)M_PI;
@@ -287,12 +280,11 @@ static void rod(float length, float radius, int slices)
       }
     glEnd();
 
-    // Left end cap (fan)
     glBegin(GL_TRIANGLE_FAN);
-      glVertex3f(xL, 0.0f, 0.0f); // center
+      glVertex3f(xL, 0.0f, 0.0f);
       for (int i=0;i<=slices;i++)
       {
-          float ang = (float)(slices-i) / (float)slices * 2.0f*(float)M_PI; // reverse to keep outward winding
+          float ang = (float)(slices-i) / (float)slices * 2.0f*(float)M_PI;
           glVertex3f(xL, radius*cosf(ang), radius*sinf(ang));
       }
     glEnd();
@@ -302,11 +294,10 @@ static void extrudedDisk(float R, float T, int slices)
     if (slices < 3) slices = 3;
     const float TWO_PI = 6.28318530718f;
 
-    // Bottom cap (z=0), CCW as seen from -Z
     glColor3f(0.9f,0.9f,0.9f);
     glBegin(GL_TRIANGLE_FAN);
       glNormal3f(0,0,-1);
-      glVertex3f(0.0f,0.0f,0.0f);                // center
+      glVertex3f(0.0f,0.0f,0.0f);
       for (int i=0; i<=slices; ++i) {
           float a = TWO_PI * (float)i / (float)slices;
           float x = R * cosf(a);
@@ -315,11 +306,11 @@ static void extrudedDisk(float R, float T, int slices)
       }
     glEnd();
 
-    // Top cap (z=T), CCW as seen from +Z
+    
     glColor3f(0.7f,0.7f,0.7f);
     glBegin(GL_TRIANGLE_FAN);
       glNormal3f(0,0,1);
-      glVertex3f(0.0f,0.0f,T);                   // center
+      glVertex3f(0.0f,0.0f,T);
       for (int i=0; i<=slices; ++i) {
           float a = TWO_PI * (float)i / (float)slices;
           float x = R * cosf(a);
@@ -328,24 +319,18 @@ static void extrudedDisk(float R, float T, int slices)
       }
     glEnd();
 
-    // Side wall
     glColor3f(0.3f,0.6f,1.0f);
     glBegin(GL_QUAD_STRIP);
       for (int i=0; i<=slices; ++i) {
           float a = TWO_PI * (float)i / (float)slices;
           float cx = cosf(a), cy = sinf(a);
-          glNormal3f(cx,cy,0);                   // outward normal
+          glNormal3f(cx,cy,0);
           glVertex3f(R*cx, R*cy, 0.0f);
           glVertex3f(R*cx, R*cy, T);
       }
     glEnd();
 }
-/* Simple tapered tube using QUAD_STRIP
- * - baseX: x-position of base circle
- * - topX : x-position of top circle
- * - r1   : radius at base
- * - r2   : radius at top
- * - step : angular step in degrees
+/* Simple tapered tube with variable base/top radius. step defines slices. 
  */
 static void taperedTube(double baseX, double topX,
                         double r1, double r2,
@@ -361,50 +346,43 @@ static void taperedTube(double baseX, double topX,
    }
    glEnd();
 }
+
 //END SIMPLE SHAPES, BEGIN COMPOSITES
 
-/* Cabin built from 4 boxes:
-   overall outer size: length=4, height=2, width=2
-   pieces: floor, roof, front wall (+X), back wall (−X)
-   tip: adjust wallT for thickness
-*/
+// Helicopter cabin built from four boxes using the cube function.
 static void cabinComposite(double x,double y,double z, double th, double wallT)
 {
-    const double halfL = 2.0;  // length/2  (X extent)
-    const double halfH = 1.0;  // height/2  (Y extent)
-    const double halfW = 1.0;  // width/2   (Z extent)
+    const double halfL = 2.0;
+    const double halfH = 1.0;
+    const double halfW = 1.0;
 
     glPushMatrix();
     glTranslated(x,y,z);
     glRotated(th,0,1,0);
 
-    // --- FLOOR slab (thin along Y), centered just above bottom
+    // floor slab
     cube(0.0, -(halfH - wallT), 0.0,
          halfL, wallT, halfW, 0);
 
-    // --- ROOF slab (thin along Y), centered just below top
+    // roof slab
     cube(0.0, +(halfH - wallT), 0.0,
          halfL, wallT, halfW, 0);
 
-    // --- FRONT wall at +X (thin along X)
+    // front wall
     cube(+(halfL - wallT), 0.0, 0.0,
          wallT, halfH, halfW, 0);
 
-    // --- BACK wall at −X (thin along X)
+    // back wall
     cube(-(halfL - wallT), 0.0, 0.0,
          wallT, halfH, halfW, 0);
 
     glPopMatrix();
 }
-/*
- * window
- *  Draws a thin box (length = 2*h, height = h, depth = t)
- *  and puts a disk (radius = h/2) halfway into each side face
- */
+ // window that uses a cube for a thin box, puts disks at each end for a rounded effect. 
 static void window(double x,double y,double z,double h,double t,int slices)
 {
-    double L = 2*h;          // length along X
-    double r = 0.5*h;        // disk radius
+    double L = 2*h;          
+    double r = 0.5*h;
     double hx = L/2;
     double hy = h/2;
     double hz = t/2;
@@ -412,21 +390,18 @@ static void window(double x,double y,double z,double h,double t,int slices)
     glPushMatrix();
     glTranslated(x,y,z);
 
-    // --- 1. The box using your cube helper ---
-    // cube(centerX,centerY,centerZ, dx,dy,dz, thetaY)
     cube(0,0,0, hx,hy,hz, 0);
 
-    // --- 2. Disks: reuse your extrudeDisk (or disk) helper ---
     glColor3f(0.9,0.9,0.9);
 
-    // Right side: plane z = +hz
+    // right side
     glPushMatrix();
-    glTranslated(hx,0,0);       // move to face plane
-    glRotatef(180,0,1,0);         // orient disk to lie in Y–Z plane
+    glTranslated(hx,0,0);
+    glRotatef(180,0,1,0);
     extrudedDisk(r, 0.01, slices);
     glPopMatrix();
 
-    // Left side: plane z = -hz
+    // left side
     glPushMatrix();
     glTranslated(-hx,0,0);
     glRotatef(-180,0,1,0);
@@ -435,9 +410,7 @@ static void window(double x,double y,double z,double h,double t,int slices)
 
     glPopMatrix();
 }
-// Assumes cube() and extrudeTriangle() are defined elsewhere
-
-
+// combines rods, disks and cube (for thin rectangles) to create the helicopter rotor assembly. 
 static void rotorAssy(double x, double y, double z,
                       double diskR, double diskThick,
                       double rodR,  double rodL, int slices)
@@ -445,79 +418,316 @@ static void rotorAssy(double x, double y, double z,
     const int nRods = 5;
     const double attachFrac = 0.75;
     const double rAttach    = attachFrac * diskR;
-    
-    glPushMatrix();
 
     glPushMatrix();
       glTranslated(x,y,z);
-      glColor3f(0.85,0.85,0.95);
-      glRotated(90,1,0,0);    // lay disk flat in XZ
-      extrudedDisk(diskR, diskThick, slices);
-    glPopMatrix();
 
-    // --- rods ---
-    for (int i=0;i<nRods;i++)
+      glPushMatrix();
+        glRotated(-90,1,0,0);
+        glColor3f(0.85,0.85,0.95);
+        extrudedDisk(diskR, diskThick, slices);
+      glPopMatrix();
+
+      // rods placed vertically just inside the outer rim of the disks. 
+      for (int i=0;i<nRods;i++)
+      {
+          double a = i * (360.0/nRods);
+          glPushMatrix();
+            glRotated(a,0,1,0);
+            glTranslated(rAttach, 0, 0);
+            glTranslated(0, diskThick + 0.5*rodL, 0);
+            glRotated(90,0,0,1);
+            glColor3f(0.3,0.3,0.3);
+            rod(rodL, rodR, slices);
+          glPopMatrix();
+      }
+
+      // top disk
+      glPushMatrix();
+        glTranslated(0, diskThick + rodL, 0);
+        glRotated(-90,1,0,0);
+        glColor3f(0.85,0.85,0.95);
+        extrudedDisk(diskR, diskThick, slices);
+      glPopMatrix();
+
+      // rotor blades (thin cuboids) just above top disk
+      double bladeLength = 5.0 * diskR;
+      double bladeHeight = 0.05;
+      double bladeWidth  = 0.2;
+
+      double yBlade = diskThick + rodL + 0.5*diskThick;
+      glColor3f(0.3, 0.3, 0.3);
+      // animate spin around Y-axis using zh
+      glPushMatrix();
+        glTranslated(0, yBlade, 0);
+        glRotated(3*zh, 0,1,0);
+        cube(0, 0, 0, bladeLength, bladeHeight, bladeWidth, 0);
+        glPushMatrix();
+          glRotated(90,0,1,0);
+          cube(0, 0, 0, bladeLength, bladeHeight, bladeWidth, 0);
+        glPopMatrix();
+      glPopMatrix();
+
+    glPopMatrix();
+}
+
+// Landing skids using rods and partial torus (front, curved portion)
+static void landingSkidsAssy(double x, double y, double z, double th,
+                             double skidLen, double skidR,
+                             double skidZOffset, double skidY,
+                             double strutR, double strutXOffset,
+                             double frontCurveR, double frontSweepDeg,
+                             int rings, int sides, int slices)
+{
+    glPushMatrix();
+    glTranslated(x,y,z);
+    glRotated(th,0,1,0);
+
+    for (int s=-1; s<=1; s+=2)
     {
-        double ang = i * (2*M_PI/nRods);
-        double rx = rAttach * cos(ang);
-        double rz = rAttach * sin(ang);
+        double sideZ = s * skidZOffset;
 
         glPushMatrix();
-          glTranslated(rx, diskThick, rz);
-          glRotated(90,0,0,1);
+          glColor3f(0.2,0.2,0.2);
+          glTranslated(0.0, skidY, sideZ);
+          rod(skidLen, skidR, slices);
+        glPopMatrix();
+
+        glPushMatrix();
           glColor3f(0.3,0.3,0.3);
-          rod(rodL, rodR, slices);
+          glTranslated(+0.5*skidLen, skidY + frontCurveR, sideZ);
+          glRotated(-90,0,0,1);
+          torus((float)frontCurveR, (float)skidR, (float)frontSweepDeg, rings, sides);
+        glPopMatrix();
+
+        double strutLen = (-1.0 - skidY);
+        if (strutLen < 0) strutLen = -strutLen;
+
+        for (int k=-1; k<=1; k+=2)
+        {
+            double strutX = k * strutXOffset;
+            glPushMatrix();
+              glColor3f(0.25,0.25,0.25);
+              glTranslated(strutX, skidY + 0.5*strutLen, sideZ);
+              glRotated(90,0,0,1);
+              rod(strutLen, strutR, slices);
+            glPopMatrix();
+        }
+    }
+
+    glPopMatrix();
+}
+
+// door assembly using cube for the main frame with windows. 
+static void doorAssy(double x, double y, double z, double yawDeg, int sideSign,
+                     double doorW, double doorH, double doorT,
+                     double winW, double winH, double winT, double winYOffset,
+                     double wallT, int slices)
+{
+    const double eps = 0.005;
+
+    glPushMatrix();
+    glTranslated(x,y,z);
+    glRotated(yawDeg,0,1,0);
+
+    glPushMatrix();
+      glTranslated(0.5*doorW, 0.0, sideSign*(0.5*doorT));
+      glColor3f(0.6,0.6,0.65);
+      cube(0.0, 0.0, 0.0, 0.5*doorW, 0.5*doorH, 0.5*doorT, 0.0);
+    glPopMatrix();
+
+    glPushMatrix();
+      glTranslated(0.5*doorW, winYOffset, sideSign*(doorT + winT/2.0 + eps));
+      glScaled(winW/(2.0*winH), 1.0, 1.0);
+      glColor3f(0.1,0.7,1.0);
+      window(0.0, 0.0, 0.0, winH, winT, slices);
+    glPopMatrix();
+
+    glPopMatrix();
+}
+
+/*
+ * tail rotor at boom end using rectangular blades, extruded triangle for fin with variable nBlades.
+ */
+static void rearPropAssembly(double x, double y, double z,
+                             double boomTopY,
+                             double finHalfW, double finHeight, double finT,
+                             double hubR, double hubT,
+                             int nBlades,
+                             double bladeLen, double bladeW, double bladeT,
+                             int slices)
+{
+    if (nBlades < 2) nBlades = 2;
+
+    glPushMatrix();
+    glTranslated(x,y,z);
+
+    // vertical fin
+    double yBase = boomTopY;
+    float A[3] = {0.0f, (float)yBase,  (float)(+finHalfW)};
+    float B[3] = {0.0f, (float)yBase,  (float)(-finHalfW)};
+    float C[3] = {0.0f, (float)(yBase + finHeight), 0.0f};
+
+    glColor3f(0.55,0.55,0.60);
+    extrudedTriangle(A,B,C,(float)finT);
+
+    // hub disk at upper portion of fin, facing +X
+    const double hubOffset = 0.06;
+    double yHub = yBase + finHeight - hubOffset;
+
+    glPushMatrix();
+      glTranslated(0.0, yHub, 0.0);
+      glColor3f(0.85,0.85,0.95);
+      extrudedDisk((float)hubR, (float)hubT, slices);
+    glPopMatrix();
+
+   // place nBlades
+    for (int i=0;i<nBlades;i++)
+    {
+        double ang = i * (360.0/nBlades);
+        glPushMatrix();
+          glTranslated(0.0, yHub, 0.0);
+          glRotated(6*zh,0,0,1);
+          glRotated(ang,0,0,1);
+          glColor3f(0.25,0.25,0.25);
+          cube(0.0, 0.0, 0.0, 0.5*bladeLen, 0.5*bladeT, 0.5*bladeW, 0.0);
         glPopMatrix();
     }
 
-    // --- top disk ---
-    glPushMatrix();
-      glTranslated(0,rodL, 0);
-      glRotated(90,1,0,0);
-      glColor3f(0.85,0.85,0.95);
-      extrudedDisk(diskR, diskThick, slices);
     glPopMatrix();
-
-    // --- rotor blades (cubes) ---
-    double bladeLength = 5.0 * diskR;
-    double bladeHeight = 0.05;
-    double bladeWidth  = 0.2;
-
-    // Blade 1
-    glPushMatrix();
-      glColor3f(0.3, 0.3, 0.3);
-      cube(diskR,rodL - (0.5 * diskThick),0,bladeLength,bladeHeight,bladeWidth,0);
-    glPopMatrix();
-
-    // Blade 2 (opposite side)
-    glPushMatrix();
-      glTranslated(-2*diskR,0,0);
-      glColor3f(0.3, 0.3, 0.3);
-      cube(diskR,rodL - (0.5 * diskThick),0,bladeLength,bladeHeight,bladeWidth,0);
-    glPopMatrix();
-   glPopMatrix();
 }
+
+ /*
+ * Windmill with pole as taperedTube, disk with rectangle blades. 
+ */
+static void windmill(double x,double y,double z,
+                     double poleH, double rBase, double rTop, int step,
+                     double hubR, double hubT, int nBlades,
+                     double bladeLen, double bladeW, double bladeT, int slices)
+{
+    if (nBlades < 2) nBlades = 2;
+
+    glPushMatrix();
+    glTranslated(x,y,z);
+
+   
+    glPushMatrix();
+      glRotated(90,0,0,1);
+      glColor3f(0.7,0.7,0.7);
+      taperedTube(0.0, poleH, rBase, rTop, step);
+    glPopMatrix();
+
+    glPushMatrix();
+      glTranslated(0.0, poleH, 0.0);
+
+      glColor3f(0.85,0.85,0.95);
+      extrudedDisk((float)hubR, (float)hubT, slices);
+
+      // blades rotating around z-axis
+      glPushMatrix();
+        glRotated(zh,0,0,1);
+        for (int i=0;i<nBlades;i++)
+        {
+            double ang = i * (360.0/nBlades);
+            glPushMatrix();
+              glRotated(ang,0,0,1);
+              glColor3f(0.25,0.25,0.25);
+              cube(0.0, 0.0, 0.0, 0.5*bladeLen, 0.5*bladeT, 0.5*bladeW, 0.0);
+            glPopMatrix();
+        }
+      glPopMatrix();
+    glPopMatrix();
+
+    glPopMatrix();
+}
+
+/*
+ * Hemisphere extruded along +x
+ *
+ */
+static void hemisphereFront(double x,double y,double z,double r,int d)
+{
+    if (d <= 0) d = 15;
+    glPushMatrix();
+    glTranslated(x,y,z);
+    glRotated(-90,0,0,1);
+    glScaled(r,r,r);
+    glColor3f(0.85,0.95,1.0);
+    for (int ph=0; ph<=90-d; ph+=d)
+    {
+        glBegin(GL_QUAD_STRIP);
+        for (int th=0; th<=360; th+=d)
+        {
+            glVertex3d(Sin(th)*Cos(ph)   , Sin(ph)   , Cos(th)*Cos(ph));
+            glVertex3d(Sin(th)*Cos(ph+d) , Sin(ph+d) , Cos(th)*Cos(ph+d));
+        }
+        glEnd();
+    }
+    glPopMatrix();
+}
+
 // Assemble helicopter with cabin and rotor
 static void heliAssy(double x, double y, double z, double th)
 {
-    // --- Cabin parameters ---
+    // cabin wall thickness
     double wallT = 0.1;
 
-    // --- Rotor parameters ---
+    // rotor params
     double diskR      = 0.8;
     double diskThick  = 0.05;
     double rodR       = 0.05;
     double rodL       = 0.5;
     int slices        = 20;
 
+    // door params
+    double doorW = 1.4;
+    double doorH = 1.6;
+    double doorT = 0.05;
+    double winW = 0.8;
+    double winH = 0.6;
+    double winT = 0.02;
+    double winYOffset = 0.2;
+
     glPushMatrix();
+      glTranslated(x,y,z);
+      glRotated(th,0,1,0);
 
+      cabinComposite(0, 0, 0, 0, wallT);
 
-    // --- Draw cabin ---
-    cabinComposite(0, 0, 0, 0, wallT);
-    rotorAssy(2,2,2,diskR,diskThick,rodR,rodL,slices);
+      // place rotor above cabin roof
+      double cabinTopY  = 1.0;
+      double rotorBaseY = cabinTopY + wallT;
 
+      // hemisphere nose
+      hemisphereFront(2.0, 0.0, 0.0, 1.2, 15);
 
+      rotorAssy(0, rotorBaseY, 0, diskR, diskThick, rodR, rodL, slices);
+
+      // doors on both sides
+      double hingeZ = 1.0 - wallT;
+      doorAssy(0.0, 0.0, +hingeZ, 0.0, +1, doorW, doorH, doorT, winW, winH, winT, winYOffset, wallT, 24);
+      doorAssy(0.0, 0.0, -hingeZ, 0.0, -1, doorW, doorH, doorT, winW, winH, winT, winYOffset, wallT, 24);
+
+      // landing skids
+      landingSkidsAssy(0,0,0, 0,
+                       4.0, 0.07,  
+                       1.15, -1.20,  
+                       0.05, 1.20,   
+                       0.40, 90.0,    
+                       48, 16, 24);  
+
+      // rear boom (tapered tube) from back of cabin
+      glColor3f(0.5,0.5,0.5);
+      taperedTube(-2.0, -7.5, 0.25, 0.10, 15);
+
+      // tail rotor at boom end
+      rearPropAssembly(-7.5, 0.0, 0.0,
+                       0.10,            
+                       0.12, 0.60, 0.05,
+                       0.25, 0.06,      
+                       4,                
+                       1.6, 0.20, 0.05,  
+                       24);              
 
     glPopMatrix();
 }
@@ -542,47 +752,70 @@ void display()
    //  Decide what to draw
    switch (mode)
    {
+      // Scene with two helicopters and three windmills
       case 0:
-        rotorAssy(0,0,0,1,0.5f,0.1f,2,32);
-        break;
-      case 1:
       {
-        float A[3] = {-0.3f, -0.4f, 0.0f};  // Right angle corner (origin of triangle)
-        float B[3] = { 0.4f, -0.4f, 0.0f};  // Base point (same Y)
-        float C[3] = { 0.4f,  0.6f, 0.0f};  // Height point (same X as B)
-        extrudedTriangle(A,B,C, 2.5);  // thickness = 0.2 along +X
-        break;
+         windmill(-10.0, 0.0, -8.0,
+                  5.0, 0.14, 0.08, 15,
+                  0.30, 0.06,
+                  4,
+                  2.2, 0.28, 0.08, 24);
+         windmill( 10.0, 0.0,  8.0,
+                  5.5, 0.16, 0.09, 15,
+                  0.32, 0.06,
+                  4,
+                  2.4, 0.28, 0.08, 24);
+         windmill( 0.0, 0.0, -14.0,
+                  6.0, 0.15, 0.09, 15,
+                  0.34, 0.06,
+                  4,
+                  2.6, 0.30, 0.08, 24);
+
+         // Helicopters circling around Y-axis
+         double R1 = 5.0;
+         double R2 = 6.5;
+         double a1 = -zh;
+         double a2 = -zh + 180.0;
+
+         double x1 = R1*Cos(a1);
+         double z1 = R1*Sin(a1);
+         double yaw1 = 90.0 - a1;
+         glPushMatrix();
+           glTranslated(x1, 1.6, z1);
+           glRotated(yaw1,0,1,0);
+           glScaled(0.6,0.6,0.6);
+           heliAssy(0,0,0,0);
+         glPopMatrix();
+
+         double x2 = R2*Cos(a2);
+         double z2 = R2*Sin(a2);
+         double yaw2 = 90.0 - a2;
+         glPushMatrix();
+           glTranslated(x2, 2.0, z2);
+           glRotated(yaw2,0,1,0);
+           glScaled(0.6,0.6,0.6);
+           heliAssy(0,0,0,0);
+         glPopMatrix();
+         break;
       }
-      case 2:
-      // A half torus: R=1.2, r=0.3, sweep=180 degrees
-        torus(1.2f, 0.3f, 180.0f, 48, 16);
-        break;
-      case 3:
-      // 2.0 units long, radius 0.25
-        rod(2.0f, 0.25f, 32);
-        break;
-      case 4:
+      case 1:
          heliAssy(0,0,0,0.5);
          break;
-      case 5:
-        taperedTube(1.0,-1.0,0.6,0.3,15);
-        break;
-      case 6:
-        cabinComposite(0.0, 0.0, 0.0, 0.0, 0.10);  // x,y,z, yaw, wall thickness
-        break;
-      case 7:
-        window(0.0,0.0,0.0,1.0f,0.01f,32);
-        break;
-      case 8:
-        rotorAssy(0,0,0,1,0.5f,0.1f,2,32);
-        break;
+      case 2:
+         windmill(0.0, 0.0, 0.0,
+         5.0, 0.14, 0.08, 15,
+         0.30, 0.06,
+         4,
+         2.2, 0.28, 0.08, 24);
+         break;
+        
   }
    //  White
    glColor3f(1,1,1);
    //  Draw axes
    if (axes)
    {
-      const double len=1.5;  //  Length of axes
+      const double len= 5.0;  //  Length of axes
       glBegin(GL_LINES);
       glVertex3d(0.0,0.0,0.0);
       glVertex3d(len,0.0,0.0);
@@ -649,9 +882,7 @@ void key(unsigned char ch,int x,int y)
       axes = 1-axes;
    //  Switch display mode
    else if (ch == 'm')
-      mode = (mode+1)%10;
-   else if (ch == 'M')
-      mode = (mode+8)%10;
+      mode = (mode+1)%3;
    //  Tell GLUT it is necessary to redisplay the scene
    glutPostRedisplay();
 }
@@ -668,7 +899,7 @@ void reshape(int width,int height)
    //  Undo previous transformations
    glLoadIdentity();
    //  Orthogonal projection
-   const double dim=8.0;
+   const double dim=15.0;
    double asp = (height>0) ? (double)width/height : 1;
    glOrtho(-asp*dim,+asp*dim, -dim,+dim, -dim,+dim);
    //  Switch to manipulating the model matrix
@@ -698,7 +929,7 @@ int main(int argc,char* argv[])
    glutInitWindowSize(600,600);
    glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
    //  Create the window
-   glutCreateWindow("Objects");
+   glutCreateWindow("Rex Sheikh | HW 3");
 #ifdef USEGLEW
    //  Initialize GLEW
    if (glewInit()!=GLEW_OK) Fatal("Error initializing GLEW\n");
