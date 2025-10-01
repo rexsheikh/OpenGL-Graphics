@@ -1,4 +1,0 @@
-1) The following are the average frame rates with different window sizes with a sample size of 5 for each: 
-1x1: 91.7416
-300x300: 91.7784
-full screen: 3418.36

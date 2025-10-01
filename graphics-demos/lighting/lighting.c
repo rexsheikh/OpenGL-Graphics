@@ -131,7 +131,7 @@ static void triLit3f(float Ax,float Ay,float Az,
  *  Jagged rock built from triangles
  *    positioned at (x,y,z) and uniformly scaled by s
  */
-static void rockLit(double x,double y,double z,double s)
+static void rockLit(double x,double y,double z,double s, double r, double g, double b)
 {
    const int N = 16;
    // Optional material tweak for subtle highlight
@@ -143,6 +143,7 @@ static void rockLit(double x,double y,double z,double s)
    glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,grayCol);
    glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
    glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,2.0f);
+   glColor3f(r,g,b);
 
    glPushMatrix();
    glTranslated(x,y,z);
@@ -187,7 +188,7 @@ static void boxQuadsLit(float sx,float sy,float sz, float r,float g,float b)
 {
    glPushMatrix();
    glScalef(sx,sy,sz);
-   glColor3f(r,g,b);
+
    glBegin(GL_QUADS);
    //  Front
    glNormal3f(0,0,1);
@@ -468,9 +469,9 @@ void display()
          treeLit( 0.0, 0.0,  2.6, 1.8, 0.9);
 
          // Rocks
-         rockLit(-1.0, 0.0,  0.0, 0.7);
-         rockLit( 1.2, 0.0, -1.4, 0.6);
-         rockLit( 0.6, 0.0,  1.5, 0.5);
+         rockLit(-1.0, 0.0,  0.0, 0.7, 128,128,128);
+         rockLit( 1.2, 0.0, -1.4, 0.6,128,128,128);
+         rockLit( 0.6, 0.0,  1.5, 0.5, 128, 128, 128);
 
          // Street lamps
          streetLamp(-3.6, 0.0, -0.8);
@@ -479,16 +480,17 @@ void display()
       }
       // solo rock
       case 1:
-         rockLit(0.0,0.0,0.0, 1.0);
+         rockLit(0.0,0.0,0.0, 1.0,128,128,128);
          break;
       // solo tree
       case 2:
          treeLit(0.0,0.0,0.0, 2.2, 1.2);
          break;
+
       // streetlamp + rock
       case 3:
          streetLamp(0.0,0.0,0.0);
-         rockLit(0.8,0.0,0.0, 0.6);
+         rockLit(0.8,0.0,0.0, 0.6,128,128,128);
          break;
    }
 
