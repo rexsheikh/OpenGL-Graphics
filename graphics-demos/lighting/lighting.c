@@ -1,4 +1,4 @@
-/* Homework 5: Lighting
+/*
  * Rex Sheikh
  * 10-01-2025
  *
@@ -55,27 +55,6 @@ typedef struct {float x,y,z;} vtx;
 typedef struct {int A,B,C;} tri;
 #define n 500
 vtx is[n];
-
-/*
- *  Icosahedron data
- */
-const int N=20;
-//  Triangle index list
-const tri idx[] =
-   {
-      { 2, 1, 0}, { 3, 2, 0}, { 4, 3, 0}, { 5, 4, 0}, { 1, 5, 0},
-      {11, 6, 7}, {11, 7, 8}, {11, 8, 9}, {11, 9,10}, {11,10, 6},
-      { 1, 2, 6}, { 2, 3, 7}, { 3, 4, 8}, { 4, 5, 9}, { 5, 1,10},
-      { 2, 7, 6}, { 3, 8, 7}, { 4, 9, 8}, { 5,10, 9}, { 1, 6,10}
-   };
-//  Vertex coordinates
-const vtx xyz[] =
-   {
-      { 0.000, 0.000, 1.000}, { 0.894, 0.000, 0.447}, { 0.276, 0.851, 0.447},
-      {-0.724, 0.526, 0.447}, {-0.724,-0.526, 0.447}, { 0.276,-0.851, 0.447},
-      { 0.724, 0.526,-0.447}, {-0.276, 0.851,-0.447}, {-0.894, 0.000,-0.447},
-      {-0.276,-0.851,-0.447}, { 0.724,-0.526,-0.447}, { 0.000, 0.000,-1.000}
-   };
 
 /*
  *  Draw vertex in polar coordinates with normal
@@ -149,7 +128,7 @@ static void triLit3f(float Ax,float Ay,float Az,
 }
 
 /*
- *  Jagged rock built from triangles with procedural perturbations
+ *  Jagged rock built from triangles
  *    positioned at (x,y,z) and uniformly scaled by s
  */
 static void rockLit(double x,double y,double z,double s)
