@@ -1,7 +1,6 @@
 /*
  * Rex Sheikh
  * 10-01-2025
- *
  *  Demonstrates basic lighting using a movable light source and simple objects including trees, rocks, and street lamps.
  *
  *  Key bindings:
@@ -11,7 +10,6 @@
  *  v          Toggle local viewer mode
  *  k          Toggle light distance (1/5)
  *  i/I        Decrease/Increase ball increment
- *  e/E        Decrease/Increase streetlamp emissivity
  *  b          Invert bottom normal
  *  m          Toggles light movement
  *  []         Lower/rise light
@@ -44,20 +42,36 @@ int smooth    =   1;  // Smooth/Flat shading
 int local     =   0;  // Local Viewer Model
 int emission  =   0;  // Emission intensity (%)
 int ambient   =  10;  // Ambient intensity (%)
-int diffuse   =  50;  // Diffuse intensity (%)
-int specular  =   0;  // Specular intensity (%)
 int shininess =   0;  // Shininess (power of two)
 float shiny   =   1;  // Shininess (value)
 int zh        =  90;  // Light azimuth
 float ylight  =   0;  // Elevation of light
-float lampEmiss = 1.0f; // Streetlamp emissivity (0..2)
 typedef struct {float x,y,z;} vtx;
 typedef struct {int A,B,C;} tri;
 #define n 500
 vtx is[n];
 
+// Color/Material structs later passed as references into composite shapes. 
+// Pattern referenced from OpenGl Primer, 3ed, Chapter 6.5 - Specifying a Material
+typedef struct { float r,g,b; } Color;
+typedef struct {
+  Color ambient;
+  Color diffuse;
+  Color specular;
+  float shininess;
+} Material;
+
+// Default palette
+static const Material ROCK_DFLT  = {{0.50f,0.50f,0.50f},{0.50f,0.50f,0.50f},{0.15f,0.15f,0.15f}, 2.0f};
+static const Material TRUNK_DFLT = {{0.45f,0.30f,0.20f},{0.45f,0.30f,0.20f},{0.02f,0.02f,0.02f}, 2.0f};
+static const Color    CANOPY_DFLT= {0.10f,0.55f,0.15f};
+static const Material METAL_DFLT = {{0.60f,0.60f,0.62f},{0.60f,0.60f,0.62f},{0.60f,0.60f,0.60f},64.0f};
+static const Color    BULB_DFLT  = {1.00f,1.00f,0.90f};
+static const Color    AMBER_DARK = {0.85f,0.55f,0.10f};
+
 /*
  *  Draw vertex in polar coordinates with normal
+ *  Note: This was taken from ex13.c
  */
 static void Vertex(double th,double ph)
 {
@@ -131,23 +145,24 @@ static void triLit3f(float Ax,float Ay,float Az,
  *  Jagged rock built from triangles
  *    positioned at (x,y,z) and uniformly scaled by s
  */
-static void rockLit(double x,double y,double z,double s, double r, double g, double b)
+static void rockLit(double x,double y,double z,double s, const Material* mat)
 {
    const int N = 16;
-   // Optional material tweak for subtle highlight
-   float black[]  = {0,0,0,1};
-   float grayCol[] = {0.50f,0.50f,0.50f,1};
-   float spec[]   = {0.15f,0.15f,0.15f,1};
-   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
-   glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,grayCol);
-   glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,grayCol);
-   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
-   glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,2.0f);
-   glColor3f(r,g,b);
+   const Material* M = mat ? mat : &ROCK_DFLT;
+   float A[4] = {M->ambient.r ,M->ambient.g ,M->ambient.b ,1.0f};
+   float D[4] = {M->diffuse.r ,M->diffuse.g ,M->diffuse.b ,1.0f};
+   float S[4] = {M->specular.r,M->specular.g,M->specular.b,1.0f};
+   float Em[4]= {0,0,0,1};
+   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,Em);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT ,A);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE ,D);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,S);
+   glMaterialf (GL_FRONT_AND_BACK,GL_SHININESS,M->shininess);
 
    glPushMatrix();
    glTranslated(x,y,z);
    glScalef(s,s,s);
+   glColor3f(M->diffuse.r,M->diffuse.g,M->diffuse.b);
 
    for (int i=0;i<N;i++)
    {
@@ -189,6 +204,7 @@ static void boxQuadsLit(float sx,float sy,float sz, float r,float g,float b)
    glPushMatrix();
    glScalef(sx,sy,sz);
 
+   glColor3f(r,g,b);
    glBegin(GL_QUADS);
    //  Front
    glNormal3f(0,0,1);
@@ -216,22 +232,22 @@ static void boxQuadsLit(float sx,float sy,float sz, float r,float g,float b)
  *  Tree constructed with GL_QUADS (trunk and layered canopy)
  *    at (x,y,z) with overall height h and canopy radius r
  */
-static void treeLit(double x,double y,double z,double h,double r)
+static void treeLit(double x,double y,double z,double h,double r,
+                    const Material* trunkMat, const Color* canopyBase)
 {
-   // Basic materials via color (color material is enabled in display when lighting is on)
    glPushMatrix();
    glTranslated(x,y,z);
-   // Metallic pole/arm: higher specular and shininess (per-object)
+
+   // Trunk material
    {
-      float specHi[] = {0.60f,0.60f,0.60f,1.0f};
-      glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,specHi);
-      glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,64.0f);
-   }
-   // Low specular/shininess for organic materials (wood/leaves)
-   {
-      float specLow[] = {0.02f,0.02f,0.02f,1.0f};
-      glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,specLow);
-      glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,2.0f);
+      const Material* TM = trunkMat ? trunkMat : &TRUNK_DFLT;
+      float A[4] = {TM->ambient.r ,TM->ambient.g ,TM->ambient.b ,1.0f};
+      float D[4] = {TM->diffuse.r ,TM->diffuse.g ,TM->diffuse.b ,1.0f};
+      float S[4] = {TM->specular.r,TM->specular.g,TM->specular.b,1.0f};
+      glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT ,A);
+      glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE ,D);
+      glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,S);
+      glMaterialf (GL_FRONT_AND_BACK,GL_SHININESS,TM->shininess);
    }
 
    // Trunk
@@ -243,20 +259,27 @@ static void treeLit(double x,double y,double z,double h,double r)
    // Canopy levels
    double baseY = 0.4*h;
    double levelH = 0.2*h;
+   const Color* CB = canopyBase ? canopyBase : &CANOPY_DFLT;
+   // Low specular/shininess for canopy
+   {
+      float specLow[] = {0.02f,0.02f,0.02f,1.0f};
+      glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,specLow);
+      glMaterialf (GL_FRONT_AND_BACK,GL_SHININESS,2.0f);
+   }
 
    glPushMatrix();
    glTranslated(0, baseY + 0.5*levelH, 0);
-   boxQuadsLit(1.00f*r, levelH, 1.00f*r, 0.10f,0.55f,0.15f);
+   boxQuadsLit(1.00f*r, levelH, 1.00f*r, CB->r, CB->g, CB->b);
    glPopMatrix();
 
    glPushMatrix();
    glTranslated(0, baseY + levelH + 0.5*levelH, 0);
-   boxQuadsLit(0.75f*r, levelH, 0.75f*r, 0.08f,0.50f,0.12f);
+   boxQuadsLit(0.75f*r, levelH, 0.75f*r, 0.85f*CB->r, 0.85f*CB->g, 0.85f*CB->b);
    glPopMatrix();
 
    glPushMatrix();
    glTranslated(0, baseY + 2*levelH + 0.5*levelH, 0);
-   boxQuadsLit(0.55f*r, levelH, 0.55f*r, 0.06f,0.45f,0.10f);
+   boxQuadsLit(0.55f*r, levelH, 0.55f*r, 0.70f*CB->r, 0.70f*CB->g, 0.70f*CB->b);
    glPopMatrix();
 
    glPopMatrix();
@@ -323,9 +346,10 @@ static void torus(float R, float r, float sweepDeg, int rings, int sides)
  *  Emissive sphere (simple lat-long using Vertex helper)
  *  intensity = emission amount [0..1]
  */
-static void emissiveBall(double x,double y,double z,double r,float intensity)
+static void emissiveBall(double x,double y,double z,double r,float intensity,const Color* color)
 {
-   float Emiss[] = {intensity,intensity,intensity,1.0f};
+   const Color* C = color ? color : &BULB_DFLT;
+   float Emiss[] = {intensity*C->r,intensity*C->g,intensity*C->b,1.0f};
    float Black[] = {0.0f,0.0f,0.0f,1.0f};
 
    glPushMatrix();
@@ -333,7 +357,7 @@ static void emissiveBall(double x,double y,double z,double r,float intensity)
    glScaled(r,r,r);
 
    glMaterialfv(GL_FRONT,GL_EMISSION,Emiss);
-   glColor3f(1,1,0.9f); // warm bulb color
+   glColor3f(C->r,C->g,C->b);
    for (int ph=-90;ph<90;ph+=inc)
    {
       glBegin(GL_QUAD_STRIP);
@@ -355,7 +379,9 @@ static void emissiveBall(double x,double y,double z,double r,float intensity)
  *   - curved arm (torus segment) centered at top of pole
  *   - emissive bulb at the arc tip
  */
-static void streetLamp(double x,double y,double z)
+static void streetLamp(double x,double y,double z,
+                       const Material* metalMat,
+                       const Color* bulbColor)
 {
    // Parameters
    const float poleH   = 2.2f;
@@ -370,28 +396,41 @@ static void streetLamp(double x,double y,double z)
    glPushMatrix();
    glTranslated(x,y,z);
 
+   // Apply metal material
+   const Material* MM = metalMat ? metalMat : &METAL_DFLT;
+   float A[4] = {MM->ambient.r ,MM->ambient.g ,MM->ambient.b ,1.0f};
+   float D[4] = {MM->diffuse.r ,MM->diffuse.g ,MM->diffuse.b ,1.0f};
+   float S[4] = {MM->specular.r,MM->specular.g,MM->specular.b,1.0f};
+   glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT ,A);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE ,D);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,S);
+   glMaterialf (GL_FRONT_AND_BACK,GL_SHININESS,MM->shininess);
+
    // Pole (dark gray) - raise so base sits on ground (y=0)
    glPushMatrix();
    glTranslated(0.0, poleH, 0.0);
-   boxQuadsLit(poleW, poleH, poleW, 0.35f,0.35f,0.36f);
+   boxQuadsLit(poleW, poleH, poleW, MM->diffuse.r, MM->diffuse.g, MM->diffuse.b);
    glPopMatrix();
 
-   // Arm at top of pole; start face (u=0) lies in XZ plane at the pole top
+   // Arm at top of pole; attach torus circular face (u=0 ring) to the top square face of the pole.
+   // Place ring plane at y = 2*poleH and shift by -RArm in X so the ring center sits above the pole center.
    glPushMatrix();
-   glTranslated(0.0, 2.0f*poleH - RArm, 0.0);
-   glRotatef(90, 0, 0, 1);
-   glColor3f(0.6f,0.6f,0.62f);
+   glTranslated(0.0, 2.0f*poleH, 0.0);
+   glTranslatef(-RArm, 0.0f, 0.0f);
+   glColor3f(MM->diffuse.r, MM->diffuse.g, MM->diffuse.b);
    torus(RArm, rArm, sweep, rings, sides);
    glPopMatrix();
 
    // Bulb at arc tip in the same local frame: translate to tip and draw
    glPushMatrix();
-   glTranslated(0.0, 2.0f*poleH - RArm, 0.0);
-   glRotatef(90, 0, 0, 1);
+   glTranslated(0.0, 2.0f*poleH, 0.0);
+   glTranslatef(-RArm, 0.0f, 0.0f);
    {
      double uRad = sweep * M_PI/180.0;
      glTranslatef((RArm + rArm)*cos(uRad), (RArm + rArm)*sin(uRad), 0.0f);
-     emissiveBall(0.0,0.0,0.0, bulbR, lampEmiss);
+     const Color* BC = &AMBER_DARK;
+     float emiss = 0.0f; // non-emissive bulb
+     emissiveBall(0.0,0.0,0.0, bulbR, emiss, BC);
    }
    glPopMatrix();
 
@@ -464,33 +503,31 @@ void display()
       case 0:
       {
          // Trees
-         treeLit(-2.2, 0.0, -1.0, 2.2, 1.2);
-         treeLit( 2.4, 0.0,  1.1, 2.0, 1.0);
-         treeLit( 0.0, 0.0,  2.6, 1.8, 0.9);
+         treeLit(-2.2, 0.0, -1.0, 2.2, 1.2, &TRUNK_DFLT, &CANOPY_DFLT);
+         treeLit( 2.4, 0.0,  1.1, 2.0, 1.0, &TRUNK_DFLT, &CANOPY_DFLT);
+         treeLit( 0.0, 0.0,  2.6, 1.8, 0.9, &TRUNK_DFLT, &CANOPY_DFLT);
 
          // Rocks
-         rockLit(-1.0, 0.0,  0.0, 0.7, 128,128,128);
-         rockLit( 1.2, 0.0, -1.4, 0.6,128,128,128);
-         rockLit( 0.6, 0.0,  1.5, 0.5, 128, 128, 128);
+         rockLit(-1.0, 0.0,  0.0, 0.7, &ROCK_DFLT);
+         rockLit( 1.2, 0.0, -1.4, 0.6, &ROCK_DFLT);
+         rockLit( 0.6, 0.0,  1.5, 0.5, &ROCK_DFLT);
 
          // Street lamps
-         streetLamp(-3.6, 0.0, -0.8);
-         streetLamp( 3.6, 0.0,  0.8);
+         streetLamp(-3.6, 0.0, -0.8, &METAL_DFLT, &BULB_DFLT);
+         streetLamp( 3.6, 0.0,  0.8, &METAL_DFLT, &BULB_DFLT);
          break;
       }
       // solo rock
       case 1:
-         rockLit(0.0,0.0,0.0, 1.0,128,128,128);
+         rockLit(0.0,0.0,0.0, 1.0, &ROCK_DFLT);
          break;
       // solo tree
       case 2:
-         treeLit(0.0,0.0,0.0, 2.2, 1.2);
+         treeLit(0.0,0.0,0.0, 2.2, 1.2, &TRUNK_DFLT, &CANOPY_DFLT);
          break;
-
-      // streetlamp + rock
+      // solo streetlamp
       case 3:
-         streetLamp(0.0,0.0,0.0);
-         rockLit(0.8,0.0,0.0, 0.6,128,128,128);
+         streetLamp(0.0,0.0,0.0, &METAL_DFLT, &BULB_DFLT);
          break;
    }
 
@@ -526,7 +563,7 @@ void display()
       glWindowPos2i(5,45);
       Print("Model=%s LocalViewer=%s Distance=%d Elevation=%.1f",smooth?"Smooth":"Flat",local?"On":"Off",distance,ylight);
       glWindowPos2i(5,25);
-      Print("Ambient=%d  LampEmiss=%.2f", ambient, lampEmiss);
+      Print("Ambient=%d", ambient);
    }
 
    //  Render the scene and make it visible
@@ -657,17 +694,6 @@ void key(unsigned char ch,int x,int y)
    else if (ch=='s' || ch=='S')
    {
       /* no-op: specular is controlled per object */
-   }
-   //  Streetlamp emissivity control
-   else if (ch=='e') // decrease
-   {
-      lampEmiss -= 0.1f;
-      if (lampEmiss < 0.0f) lampEmiss = 0.0f;
-   }
-   else if (ch=='E') // increase
-   {
-      lampEmiss += 0.1f;
-      if (lampEmiss > 2.0f) lampEmiss = 2.0f;
    }
    //  Shininess level (disabled; per-object material)
    else if (ch=='n' || ch=='N')
