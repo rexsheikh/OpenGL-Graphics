@@ -156,37 +156,27 @@ static void torus(float R, float r, float sweepDeg, int rings, int sides)
     float du = sweepDeg / (float)rings;
     float dv = 360.0f   / (float)sides;
 
-    for (int j = 0; j < sides; ++j)
-    {
-        float v0 = j * dv;
-        float v1 = (j+1) * dv;
+   // drop GL_QUAD_STRIP; use GL_TRIANGLE_STRIP
+for (int j = 0; j < sides; ++j) {
+    float v0 = j * dv, v1 = (j + 1) * dv;
+    float cv0 = cosf(v0 * (float)M_PI/180.0f), sv0 = sinf(v0 * (float)M_PI/180.0f);
+    float cv1 = cosf(v1 * (float)M_PI/180.0f), sv1 = sinf(v1 * (float)M_PI/180.0f);
 
-        float cv0 = cosf(v0 * (float)M_PI/180.0f);
-        float sv0 = sinf(v0 * (float)M_PI/180.0f);
-        float cv1 = cosf(v1 * (float)M_PI/180.0f);
-        float sv1 = sinf(v1 * (float)M_PI/180.0f);
+    glBegin(GL_TRIANGLE_STRIP);
+    for (int i = 0; i <= rings; ++i) {
+        float u = i * du;
+        float cu = cosf(u * (float)M_PI/180.0f), su = sinf(u * (float)M_PI/180.0f);
 
-        glBegin(GL_QUAD_STRIP);
-        for (int i = 0; i <= rings; ++i)
-        {
-            float u = i * du;
-            float cu = cosf(u * (float)M_PI/180.0f);
-            float su = sinf(u * (float)M_PI/180.0f);
+        float x0 = (R + r*cv0) * cu, y0 = (R + r*cv0) * su, z0 = r*sv0;
+        float x1 = (R + r*cv1) * cu, y1 = (R + r*cv1) * su, z1 = r*sv1;
 
-            // two “rings” at v0 and v1
-            float x0 = (R + r*cv0) * cu;
-            float y0 = (R + r*cv0) * su;
-            float z0 =  r*sv0;
-
-            float x1 = (R + r*cv1) * cu;
-            float y1 = (R + r*cv1) * su;
-            float z1 =  r*sv1;
-
-            glVertex3f(x0, y0, z0);
-            glVertex3f(x1, y1, z1);
-        }
-        glEnd();
+        // triangle strip requires alternating rows like your quad strip:
+        glVertex3f(x0, y0, z0); // row j
+        glVertex3f(x1, y1, z1); // row j+1
     }
+    glEnd();
+}
+ 
 }
 
 static void extrudedTriangle(const float A[3],
@@ -738,6 +728,136 @@ static void heliAssy(double x, double y, double z, double th)
 /*
  *  OpenGL (GLUT) calls this routine to display the scene
  */
+static void rock(double x,double y,double z,double s)
+{
+   const int N = 10;
+   glPushMatrix();
+   glTranslated(x,y,z);
+   glScaled(s,s,s);
+
+   glColor3f(0.55f,0.55f,0.55f);
+   glBegin(GL_TRIANGLES);
+   for (int i=0;i<N;i++)
+   {
+      double a0 = 360.0*i/N;
+      double a1 = 360.0*(i+1)/N;
+
+      double r0t = 0.8 + 0.2*Cos(3*a0);
+      double r1t = 0.8 + 0.2*Cos(3*a1);
+      double r0b = 1.0 + 0.25*Sin(3*a0 + 40.0);
+      double r1b = 1.0 + 0.25*Sin(3*a1 + 40.0);
+
+      double yt0 = 0.6 + 0.08*Sin(4*a0);
+      double yt1 = 0.6 + 0.08*Sin(4*a1);
+      double yb0 = -0.5 + 0.07*Cos(5*a0);
+      double yb1 = -0.5 + 0.07*Cos(5*a1);
+
+      double x0t = r0t*Cos(a0), z0t = r0t*Sin(a0);
+      double x1t = r1t*Cos(a1), z1t = r1t*Sin(a1);
+      double x0b = r0b*Cos(a0), z0b = r0b*Sin(a0);
+      double x1b = r1b*Cos(a1), z1b = r1b*Sin(a1);
+
+      // top cap triangle
+      glVertex3f(0.0f, 0.7f, 0.0f);
+      glVertex3f((float)x0t, (float)yt0, (float)z0t);
+      glVertex3f((float)x1t, (float)yt1, (float)z1t);
+
+      // bottom cap triangle
+      glVertex3f(0.0f, -0.6f, 0.0f);
+      glVertex3f((float)x1b, (float)yb1, (float)z1b);
+      glVertex3f((float)x0b, (float)yb0, (float)z0b);
+
+      // side quad split into two triangles
+      glVertex3f((float)x0t, (float)yt0, (float)z0t);
+      glVertex3f((float)x0b, (float)yb0, (float)z0b);
+      glVertex3f((float)x1b, (float)yb1, (float)z1b);
+
+      glVertex3f((float)x0t, (float)yt0, (float)z0t);
+      glVertex3f((float)x1b, (float)yb1, (float)z1b);
+      glVertex3f((float)x1t, (float)yt1, (float)z1t);
+   }
+   glEnd();
+
+   glPopMatrix();
+}
+
+static void unitBoxQuads()
+{
+   glBegin(GL_QUADS);
+   //  Front
+   glVertex3f(-1,-1, 1);
+   glVertex3f(+1,-1, 1);
+   glVertex3f(+1,+1, 1);
+   glVertex3f(-1,+1, 1);
+   //  Back
+   glVertex3f(+1,-1,-1);
+   glVertex3f(-1,-1,-1);
+   glVertex3f(-1,+1,-1);
+   glVertex3f(+1,+1,-1);
+   //  Right
+   glVertex3f(+1,-1,+1);
+   glVertex3f(+1,-1,-1);
+   glVertex3f(+1,+1,-1);
+   glVertex3f(+1,+1,+1);
+   //  Left
+   glVertex3f(-1,-1,-1);
+   glVertex3f(-1,-1,+1);
+   glVertex3f(-1,+1,+1);
+   glVertex3f(-1,+1,-1);
+   //  Top
+   glVertex3f(-1,+1,+1);
+   glVertex3f(+1,+1,+1);
+   glVertex3f(+1,+1,-1);
+   glVertex3f(-1,+1,-1);
+   //  Bottom
+   glVertex3f(-1,-1,-1);
+   glVertex3f(+1,-1,-1);
+   glVertex3f(+1,-1,+1);
+   glVertex3f(-1,-1,+1);
+   glEnd();
+}
+
+static void tree(double x,double y,double z,double h,double r)
+{
+   glPushMatrix();
+   glTranslated(x,y,z);
+
+   // Trunk
+   glPushMatrix();
+   glTranslated(0, 0.5*h*0.4, 0);
+   glScaled(0.25*r, 0.4*h, 0.25*r);
+   glColor3f(0.45f,0.30f,0.20f);
+   unitBoxQuads();
+   glPopMatrix();
+
+   // Canopy levels
+   double baseY = 0.4*h;
+   double levelH = 0.2*h;
+
+   glPushMatrix();
+   glTranslated(0, baseY + 0.5*levelH, 0);
+   glScaled(1.00*r, levelH, 1.00*r);
+   glColor3f(0.10f,0.55f,0.15f);
+   unitBoxQuads();
+   glPopMatrix();
+
+   glPushMatrix();
+   glTranslated(0, baseY + levelH + 0.5*levelH, 0);
+   glScaled(0.75*r, levelH, 0.75*r);
+   glColor3f(0.08f,0.50f,0.12f);
+   unitBoxQuads();
+   glPopMatrix();
+
+   glPushMatrix();
+   glTranslated(0, baseY + 2*levelH + 0.5*levelH, 0);
+   glScaled(0.55*r, levelH, 0.55*r);
+   glColor3f(0.06f,0.45f,0.10f);
+   unitBoxQuads();
+   glPopMatrix();
+
+   glPopMatrix();
+}
+
 void display()
 {
    //  Erase the window and the depth buffer
@@ -770,6 +890,15 @@ void display()
                   0.34, 0.06,
                   4,
                   2.6, 0.30, 0.08, 24);
+
+         // Trees
+         tree(-12.0, 0.0, -6.0, 3.5, 2.0);
+         tree( 12.0, 0.0,  6.0, 3.2, 1.8);
+         tree(  0.0, 0.0, 10.0, 2.8, 1.6);
+         // Rocks
+         rock(-5.0, 0.0, -3.0, 1.2);
+         rock( 5.0, 0.0,  3.5, 1.0);
+         rock( 1.0, 0.0, -8.0, 0.8);
 
          // Helicopters circling around Y-axis
          double R1 = 5.0;
